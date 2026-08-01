@@ -1,0 +1,54 @@
+{
+  "title": "汇成医美新版布局测试",
+  "subtitle": "HCYM EDUCATION",
+  "subtitle2": "NEW LAYOUTS TEST",
+  "presenter": "测试员",
+  "slides": [
+    {"type": "cover", "title": "新版布局测试", "subtitle": "HCYM EDUCATION GROUP", "subtitle2": "NEW LAYOUTS", "presenter": "AI测试"},
+    {"type": "toc", "items": ["对比卡片", "流程圆圈", "标签列表", "高亮数据", "双指标", "卡片网格"]},
+    {"type": "section", "part": "01", "year": "2026", "title": "对比卡片布局"},
+    {"type": "content", "title": "对比卡片 · 服务总结", "layout": "comparison_cards",
+     "left_title": "WorkBuddy方案", "left_items": ["10分钟自动生成", "标准化Word文档", "自动归档跟进"],
+     "right_title": "手工作业", "right_items": ["耗时30分钟", "格式参差不齐", "容易遗漏信息"]},
+    {"type": "section", "part": "02", "year": "2026", "title": "流程圆圈布局"},
+    {"type": "content", "title": "三步上手法", "layout": "process_circles",
+     "steps": [
+       {"title": "明确角色", "desc": "告诉AI它是谁，设定专业场景"},
+       {"title": "交代背景", "desc": "提供具体信息，明确任务目标"},
+       {"title": "输出要求", "desc": "指定格式字数，设定风格标准"}
+     ]},
+    {"type": "section", "part": "03", "year": "2026", "title": "标签列表布局"},
+    {"type": "content", "title": "提示词进阶秘籍", "layout": "tag_list",
+     "tags": [
+       {"term": "角色设定", "note": "告诉AI它是谁，输出专业3倍"},
+       {"term": "背景信息", "note": "越具体越好，减少偏差"},
+       {"term": "输出格式", "note": "指定表格/列表/段落"},
+       {"term": "示例引导", "note": "给范例AI照风格输出"},
+       {"term": "迭代优化", "note": "追问逼近理想结果"}
+     ]},
+    {"type": "section", "part": "04", "year": "2026", "title": "数据展示布局"},
+    {"type": "content", "title": "效率提升数据", "layout": "highlight_box",
+     "big_number": "10x", "big_label": "整体效率提升倍数",
+     "secondaries": [
+       {"value": "70%", "label": "时间节省"},
+       {"value": "100%", "label": "格式统一"},
+       {"value": "5min", "label": "平均耗时"}
+     ]},
+    {"type": "content", "title": "双指标对比", "layout": "dual_stat",
+     "left_value": "30min", "left_label": "手工整理服务总结",
+     "right_value": "10sec", "right_label": "WorkBuddy生成同样文档"},
+    {"type": "content", "title": "核心能力卡片", "layout": "card_grid",
+     "cards": [
+       {"title": "文档自动化", "desc": "Word/PPT一键生成"},
+       {"title": "数据分析", "desc": "自动清洗分层输出"},
+       {"title": "内容创作", "desc": "推文课件一气呵成"},
+       {"title": "流程优化", "desc": "行政人事财务AI辅助"},
+       {"title": "知识管理", "desc": "自动归档随时检索"},
+       {"title": "团队协作", "desc": "统一模板多人协同"}
+     ]},
+    {"type": "content", "title": "Before / After 对比", "layout": "before_after",
+     "before_title": "Before 传统方式", "before_items": ["手动搜索资料1小时", "逐字排版30分钟", "多次修改返工"],
+     "after_title": "After WorkBuddy", "after_items": ["AI一键生成15秒", "自动排版配图", "审核即可发布"]},
+    {"type": "end"}
+  ]
+}

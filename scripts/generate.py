@@ -51,6 +51,14 @@ LAYOUT_FIELDS = {
     'case':         ('case_name', 'case_result', 'case_detail'),
     'funnel':       ('stages',),
     'takeaway':     ('takeaways',),
+    # ── dashiai-ppt 风格新增布局 ──
+    'comparison_cards': ('left_title', 'left_items', 'right_title', 'right_items'),
+    'process_circles':  ('steps',),
+    'tag_list':         ('tags',),
+    'highlight_box':    ('big_number', 'big_label'),
+    'dual_stat':        ('left_value', 'right_value'),
+    'card_grid':        ('cards',),
+    'before_after':     ('before_title', 'before_items', 'after_title', 'after_items'),
 }
 
 # ── 全局元素ID计数器 ─────────────────────────────────────
@@ -114,7 +122,7 @@ def make_textbox(x, y, cx, cy, name, paragraphs, font_name=None, font_sz=None):
     bodyPr.set('wrap', 'square'); bodyPr.set('rtlCol', '0'); bodyPr.set('anchor', 't')
     etree.SubElement(txBody, f'{{{A}}}lstStyle')
 
-    for para in paragraphs:
+    for para in (paragraphs if paragraphs else [{'text': ''}]):
         p = etree.SubElement(txBody, f'{{{A}}}p')
         pPr = etree.SubElement(p, f'{{{A}}}pPr'); pPr.set('lvl', '0')
         if para.get('bullet'):
@@ -195,6 +203,123 @@ def make_pic(rid, x, y, cx, cy, name):
     etree.SubElement(prstGeom, f'{{{A}}}avLst')
 
     return pic
+
+# ── 圆角矩形（带填充+文本） ────────────────────────────
+def make_rect(x, y, cx, cy, fill_color, name, paragraphs,
+              radius=30000, line_color=None, line_w=0, anchor='ctr'):
+    """
+    圆角矩形形状，支持填充色、文本、圆角
+    paragraphs: [{ text, bold, color, sz, font }]
+    """
+    sp = etree.Element(f'{{{P}}}sp')
+
+    nv = etree.SubElement(sp, f'{{{P}}}nvSpPr')
+    cNvPr = etree.SubElement(nv, f'{{{P}}}cNvPr')
+    cNvPr.set('id', _next_id()); cNvPr.set('name', name)
+    etree.SubElement(nv, f'{{{P}}}cNvSpPr')
+    etree.SubElement(nv, f'{{{P}}}nvPr')
+
+    spPr = etree.SubElement(sp, f'{{{P}}}spPr')
+    xfrm = etree.SubElement(spPr, f'{{{A}}}xfrm')
+    off  = etree.SubElement(xfrm, f'{{{A}}}off'); off.set('x', str(x)); off.set('y', str(y))
+    ext  = etree.SubElement(xfrm, f'{{{A}}}ext'); ext.set('cx', str(cx)); ext.set('cy', str(cy))
+    prstGeom = etree.SubElement(spPr, f'{{{A}}}prstGeom')
+    prstGeom.set('prst', 'roundRect')
+    avLst = etree.SubElement(prstGeom, f'{{{A}}}avLst')
+    gd = etree.SubElement(avLst, f'{{{A}}}gd'); gd.set('name', 'adj'); gd.set('fmla', f'val {radius}')
+
+    fill = etree.SubElement(spPr, f'{{{A}}}solidFill')
+    cl = etree.SubElement(fill, f'{{{A}}}srgbClr'); cl.set('val', fill_color)
+
+    ln = etree.SubElement(spPr, f'{{{A}}}ln')
+    ln.set('w', str(line_w) if line_w else '0')
+    if line_color and line_w:
+        lsf = etree.SubElement(ln, f'{{{A}}}solidFill')
+        lcl = etree.SubElement(lsf, f'{{{A}}}srgbClr'); lcl.set('val', line_color)
+    else:
+        etree.SubElement(ln, f'{{{A}}}noFill')
+
+    txBody = etree.SubElement(sp, f'{{{P}}}txBody')
+    bodyPr = etree.SubElement(txBody, f'{{{A}}}bodyPr')
+    bodyPr.set('wrap', 'square'); bodyPr.set('rtlCol', '0'); bodyPr.set('anchor', anchor)
+    bodyPr.set('lIns', '91440'); bodyPr.set('rIns', '91440')
+    bodyPr.set('tIns', '45720'); bodyPr.set('bIns', '45720')
+    etree.SubElement(txBody, f'{{{A}}}lstStyle')
+
+    for para in (paragraphs if paragraphs else [{'text': ''}]):
+        p = etree.SubElement(txBody, f'{{{A}}}p')
+        pPr = etree.SubElement(p, f'{{{A}}}pPr'); pPr.set('lvl', '0')
+        algn = para.get('align')
+        if algn:
+            pPr.set('algn', algn)
+        r = etree.SubElement(p, f'{{{A}}}r')
+        rPr = etree.SubElement(r, f'{{{A}}}rPr')
+        rPr.set('lang', 'zh-CN'); rPr.set('dirty', '0')
+        if para.get('bold'):
+            rPr.set('b', '1')
+        if para.get('color'):
+            sf = etree.SubElement(rPr, f'{{{A}}}solidFill')
+            pcl = etree.SubElement(sf, f'{{{A}}}srgbClr'); pcl.set('val', para['color'])
+        if para.get('sz'):
+            rPr.set('sz', str(para['sz']))
+        if para.get('font'):
+            ea = etree.SubElement(rPr, f'{{{A}}}ea'); ea.set('typeface', para['font'])
+        t = etree.SubElement(r, f'{{{A}}}t'); t.text = para.get('text', '')
+
+    return sp
+
+# ── 圆形（带填充+文本） ─────────────────────────────────
+def make_circle(cx_pos, cy_pos, size, fill_color, name, paragraphs):
+    """
+    圆形形状，位置 (cx_pos, cy_pos) 为左上角
+    paragraphs: [{ text, bold, color, sz, font }]
+    """
+    sp = etree.Element(f'{{{P}}}sp')
+
+    nv = etree.SubElement(sp, f'{{{P}}}nvSpPr')
+    cNvPr = etree.SubElement(nv, f'{{{P}}}cNvPr')
+    cNvPr.set('id', _next_id()); cNvPr.set('name', name)
+    etree.SubElement(nv, f'{{{P}}}cNvSpPr')
+    etree.SubElement(nv, f'{{{P}}}nvPr')
+
+    spPr = etree.SubElement(sp, f'{{{P}}}spPr')
+    xfrm = etree.SubElement(spPr, f'{{{A}}}xfrm')
+    off  = etree.SubElement(xfrm, f'{{{A}}}off'); off.set('x', str(cx_pos)); off.set('y', str(cy_pos))
+    ext  = etree.SubElement(xfrm, f'{{{A}}}ext'); ext.set('cx', str(size)); ext.set('cy', str(size))
+    prstGeom = etree.SubElement(spPr, f'{{{A}}}prstGeom'); prstGeom.set('prst', 'ellipse')
+    etree.SubElement(prstGeom, f'{{{A}}}avLst')
+
+    fill = etree.SubElement(spPr, f'{{{A}}}solidFill')
+    cl = etree.SubElement(fill, f'{{{A}}}srgbClr'); cl.set('val', fill_color)
+    ln_el = etree.SubElement(spPr, f'{{{A}}}ln')
+    etree.SubElement(ln_el, f'{{{A}}}noFill')
+
+    txBody = etree.SubElement(sp, f'{{{P}}}txBody')
+    bodyPr = etree.SubElement(txBody, f'{{{A}}}bodyPr')
+    bodyPr.set('wrap', 'square'); bodyPr.set('rtlCol', '0'); bodyPr.set('anchor', 'ctr')
+    bodyPr.set('lIns', '0'); bodyPr.set('rIns', '0')
+    bodyPr.set('tIns', '0'); bodyPr.set('bIns', '0')
+    etree.SubElement(txBody, f'{{{A}}}lstStyle')
+
+    for para in (paragraphs if paragraphs else [{'text': ''}]):
+        p = etree.SubElement(txBody, f'{{{A}}}p')
+        pPr = etree.SubElement(p, f'{{{A}}}pPr'); pPr.set('lvl', '0')
+        pPr.set('algn', 'ctr')
+        r = etree.SubElement(p, f'{{{A}}}r')
+        rPr = etree.SubElement(r, f'{{{A}}}rPr')
+        rPr.set('lang', 'zh-CN'); rPr.set('dirty', '0')
+        if para.get('bold'):
+            rPr.set('b', '1')
+        if para.get('color'):
+            sf = etree.SubElement(rPr, f'{{{A}}}solidFill')
+            pcl = etree.SubElement(sf, f'{{{A}}}srgbClr'); pcl.set('val', para['color'])
+        if para.get('sz'):
+            rPr.set('sz', str(para['sz']))
+        if para.get('font'):
+            ea = etree.SubElement(rPr, f'{{{A}}}ea'); ea.set('typeface', para['font'])
+        t = etree.SubElement(r, f'{{{A}}}t'); t.text = para.get('text', '')
+
+    return sp
 
 # ── 背景图 rId 提取 ──────────────────────────────────────
 def _get_bg_rid(slide_xml):
@@ -285,7 +410,7 @@ def create_content(path, rels_path, data, media_dir):
         return y + cy
 
     def build_bullets(items):
-        paras = [{'text': t, 'bold': False, 'color': WHITE, 'sz': item_sz, 'bullet': True} for t in items]
+        paras = [{'text': t, 'bold': False, 'color': '333333', 'sz': item_sz, 'bullet': True} for t in items]
         return textbox(BODY_X, y_pos, BODY_W, BODY_H, 'Body', paras)
 
     # ── 布局注册表 ─────────────────────────────────────
@@ -300,7 +425,7 @@ def create_content(path, rels_path, data, media_dir):
         return build_bullets(data.get('bullets', ['（暂无内容）']))
 
     def _layout_title_content(data, y):
-        paras = [{'text': data.get('content', ''), 'bold': False, 'color': WHITE, 'sz': item_sz}]
+        paras = [{'text': data.get('content', ''), 'bold': False, 'color': '333333', 'sz': item_sz}]
         return textbox(BODY_X, y, BODY_W, BODY_H, 'Content', paras)
 
     def _layout_stat(data, y):
@@ -310,10 +435,10 @@ def create_content(path, rels_path, data, media_dir):
         ny = textbox(BODY_X, y, emu(5.0), emu(1.8), 'Number',
                      [{'text': number, 'bold': True, 'color': GOLD, 'sz': 7200, 'font': 'Arial'}])
         uy = textbox(BODY_X, ny, emu(3.0), emu(0.6), 'Unit',
-                     [{'text': unit, 'bold': False, 'color': WHITE, 'sz': unit_sz}]) if unit else ny
+                     [{'text': unit, 'bold': False, 'color': 'FBB03B', 'sz': unit_sz}]) if unit else ny
         if desc:
             textbox(BODY_X, uy + emu(0.1), BODY_W, emu(0.6), 'Desc',
-                    [{'text': desc, 'bold': False, 'color': WHITE, 'sz': sub_sz}])
+                    [{'text': desc, 'bold': False, 'color': '555555', 'sz': sub_sz}])
         return uy + emu(0.6) if desc else uy
 
     def _layout_two_column(data, y):
@@ -324,10 +449,10 @@ def create_content(path, rels_path, data, media_dir):
         textbox(RIGHT_X, y, HALF_W, emu(0.5), 'RTitle',
                 [{'text': rt, 'bold': True, 'color': GOLD, 'sz': 2200}])
         ly = textbox(LEFT_X, y + emu(0.6), HALF_W, emu(2.8), 'LBody',
-                     [{'text': i, 'bold': False, 'color': WHITE, 'sz': item_sz, 'bullet': True}
+                     [{'text': i, 'bold': False, 'color': '333333', 'sz': item_sz, 'bullet': True}
                       for i in data.get('left_items', [])])
         textbox(RIGHT_X, y + emu(0.6), HALF_W, emu(2.8), 'RBody',
-                [{'text': i, 'bold': False, 'color': WHITE, 'sz': item_sz, 'bullet': True}
+                [{'text': i, 'bold': False, 'color': '333333', 'sz': item_sz, 'bullet': True}
                  for i in data.get('right_items', [])])
         return max(ly, y + emu(3.4))
 
@@ -350,7 +475,7 @@ def create_content(path, rels_path, data, media_dir):
             textbox(RIGHT_X, y, HALF_W, emu(0.5), 'SideTitle',
                     [{'text': st, 'bold': True, 'color': GOLD, 'sz': 2200}])
         textbox(RIGHT_X, y + emu(0.6), HALF_W, emu(2.4), 'SideBody',
-                [{'text': i, 'bold': False, 'color': WHITE, 'sz': item_sz, 'bullet': True}
+                [{'text': i, 'bold': False, 'color': '333333', 'sz': item_sz, 'bullet': True}
                  for i in data.get('side_items', [])])
         return y + emu(3.0)
 
@@ -362,7 +487,7 @@ def create_content(path, rels_path, data, media_dir):
             textbox(LEFT_X, y, emu(1.5), emu(0.5), 'Year',
                     [{'text': yr, 'bold': True, 'color': GOLD, 'sz': 2800, 'font': 'Arial'}])
             textbox(LEFT_X + emu(1.8), y, BODY_W - emu(1.8), emu(0.8), 'Event',
-                    [{'text': desc, 'bold': False, 'color': WHITE, 'sz': item_sz}])
+                    [{'text': desc, 'bold': False, 'color': '333333', 'sz': item_sz}])
             y += emu(0.9)
         return y
 
@@ -379,13 +504,13 @@ def create_content(path, rels_path, data, media_dir):
             textbox(cx, y, card_w, emu(0.4), f'MLabel{i}',
                     [{'text': label, 'bold': False, 'color': GOLD, 'sz': 1600}])
             textbox(cx, y + emu(0.45), card_w, emu(1.0), f'MVal{i}',
-                    [{'text': value, 'bold': True, 'color': WHITE, 'sz': 4800, 'font': 'Arial'}])
+                    [{'text': value, 'bold': True, 'color': '333333', 'sz': 4800, 'font': 'Arial'}])
             if unit:
                 textbox(cx, y + emu(1.5), card_w, emu(0.4), f'MUnit{i}',
                         [{'text': unit, 'bold': False, 'color': GOLD, 'sz': unit_sz}])
             if sub:
                 textbox(cx, y + emu(1.95), card_w, emu(0.35), f'MSub{i}',
-                        [{'text': sub, 'bold': False, 'color': WHITE, 'sz': 1200}])
+                        [{'text': sub, 'bold': False, 'color': '555555', 'sz': 1200}])
         return y + emu(2.4)
 
     def _layout_process(data, y):
@@ -405,7 +530,7 @@ def create_content(path, rels_path, data, media_dir):
             desc = step.get('desc', '')
             if desc:
                 textbox(cx, y + emu(1.4), col_w, emu(1.5), f'StepDesc{i}',
-                        [{'text': desc, 'bold': False, 'color': WHITE, 'sz': sub_sz}])
+                        [{'text': desc, 'bold': False, 'color': '555555', 'sz': sub_sz}])
         return y + emu(3.0)
 
     def _layout_comparison(data, y):
@@ -419,9 +544,9 @@ def create_content(path, rels_path, data, media_dir):
         cy = y + emu(0.6)
         for item in items:
             textbox(LEFT_X, cy, HALF_W, emu(0.7), 'CmpL',
-                    [{'text': item.get('left', ''), 'bold': False, 'color': WHITE, 'sz': 1500}])
+                    [{'text': item.get('left', ''), 'bold': False, 'color': '333333', 'sz': 1500}])
             textbox(RIGHT_X, cy, HALF_W, emu(0.7), 'CmpR',
-                    [{'text': item.get('right', ''), 'bold': False, 'color': WHITE, 'sz': 1500}])
+                    [{'text': item.get('right', ''), 'bold': False, 'color': '333333', 'sz': 1500}])
             cy += emu(0.8)
         return cy
 
@@ -452,7 +577,7 @@ def create_content(path, rels_path, data, media_dir):
         for i, row in enumerate(rows):
             for j, cell in enumerate(row):
                 textbox(BODY_X + j * col_w, ry, col_w, emu(0.4), f'TR{i}C{j}',
-                        [{'text': str(cell), 'bold': False, 'color': WHITE, 'sz': 1400}])
+                        [{'text': str(cell), 'bold': False, 'color': '555555', 'sz': 1400}])
             ry += emu(0.45)
         return ry
 
@@ -476,7 +601,7 @@ def create_content(path, rels_path, data, media_dir):
                     [{'text': role, 'bold': True, 'color': GOLD, 'sz': 1400}])
             if desc:
                 textbox(cx, y + emu(0.95), card_w, emu(1.5), f'TDesc{i}',
-                        [{'text': desc, 'bold': False, 'color': WHITE, 'sz': 1200}])
+                        [{'text': desc, 'bold': False, 'color': '555555', 'sz': 1200}])
         return y + emu(2.5)
 
     def _layout_case(data, y):
@@ -492,7 +617,7 @@ def create_content(path, rels_path, data, media_dir):
             ry += emu(0.6)
         if detail:
             textbox(BODY_X, ry, BODY_W, emu(2.0), 'CaseDetail',
-                    [{'text': detail, 'bold': False, 'color': WHITE, 'sz': item_sz}])
+                    [{'text': detail, 'bold': False, 'color': '333333', 'sz': item_sz}])
             ry += emu(2.2)
         return ry
 
@@ -516,8 +641,238 @@ def create_content(path, rels_path, data, media_dir):
 
     def _layout_takeaway(data, y):
         takeaways = data.get('takeaways', ['（暂无内容）'])
-        paras = [{'text': t, 'bold': False, 'color': WHITE, 'sz': 2000, 'bullet': True} for t in takeaways]
+        paras = [{'text': t, 'bold': False, 'color': '333333', 'sz': 2000, 'bullet': True} for t in takeaways]
         return textbox(BODY_X, y, BODY_W, BODY_H, 'Takeaway', paras)
+
+    # ── dashiai-ppt 风格新增布局 ────────────────────────────
+
+    CARD_COLORS = ['F5F5F5', 'F0F7EE', 'FFF8EC', 'F0F4FA', 'FAF0F0', 'F5F0FA']  # 浅灰/浅绿/浅黄/浅蓝/浅粉/浅紫
+
+    def _rect(x, y, cx, cy, fill, name, paras, **kw):
+        r = make_rect(x, y, cx, cy, fill, name, paras, **kw)
+        spTree.append(r)
+        return y + cy
+
+    def _circle(x, y, size, fill, name, paras):
+        c = make_circle(x, y, size, fill, name, paras)
+        spTree.append(c)
+        return y + size
+
+    def _accent_bar(x, y, cx, color=BRAND_GREEN):
+        """左侧竖条装饰"""
+        bar = make_rect(x, y, emu(0.08), emu(0.5), color, 'Accent', [], radius=20000)
+        spTree.append(bar)
+
+    def _layout_comparison_cards(data, y):
+        """两张并排圆角卡片对比（dashiai-ppt 风格）"""
+        lt = data.get('left_title', '方案 A')
+        rt = data.get('right_title', '方案 B')
+        left_items = data.get('left_items', [])
+        right_items = data.get('right_items', [])
+        card_w = emu(5.6)
+        card_h = emu(3.2)
+        gap = emu(0.3)
+        # 左卡片 - 浅绿背景
+        _rect(LEFT_X, y, card_w, card_h, 'F0F7EE', 'CardL', [], radius=30000,
+              line_color=BRAND_GREEN, line_w=12700)
+        textbox(LEFT_X + emu(0.2), y + emu(0.15), card_w - emu(0.4), emu(0.5), 'CLTitle',
+                [{'text': lt, 'bold': True, 'color': BRAND_GREEN, 'sz': 2000}])
+        make_line(LEFT_X + emu(0.2), y + emu(0.7), card_w - emu(0.4), BRAND_GREEN, 12700)
+        spTree.append(make_line(LEFT_X + emu(0.2), y + emu(0.7), card_w - emu(0.4), BRAND_GREEN, 12700))
+        paras_l = [{'text': i, 'bold': False, 'color': '333333', 'sz': 1500, 'bullet': True} for i in left_items]
+        textbox(LEFT_X + emu(0.2), y + emu(0.85), card_w - emu(0.4), card_h - emu(1.0), 'CLBody', paras_l)
+        # 右卡片 - 浅黄背景
+        rx = LEFT_X + card_w + gap
+        _rect(rx, y, card_w, card_h, 'FFF8EC', 'CardR', [], radius=30000,
+              line_color=GOLD, line_w=12700)
+        textbox(rx + emu(0.2), y + emu(0.15), card_w - emu(0.4), emu(0.5), 'CRTitle',
+                [{'text': rt, 'bold': True, 'color': 'B8860B', 'sz': 2000}])
+        spTree.append(make_line(rx + emu(0.2), y + emu(0.7), card_w - emu(0.4), GOLD, 12700))
+        paras_r = [{'text': i, 'bold': False, 'color': '333333', 'sz': 1500, 'bullet': True} for i in right_items]
+        textbox(rx + emu(0.2), y + emu(0.85), card_w - emu(0.4), card_h - emu(1.0), 'CRBody', paras_r)
+        return y + card_h + emu(0.2)
+
+    def _layout_process_circles(data, y):
+        """编号圆圈 + 连接线 + 描述（dashiai-ppt 步骤页风格）"""
+        steps = data.get('steps', [])
+        n = len(steps)
+        if n == 0:
+            return y
+        gap = emu(0.2)
+        circle_sz = emu(0.85)
+        total_w = n * circle_sz + (n - 1) * gap
+        # 如果太宽就压缩
+        col_w = min((BODY_W - (n - 1) * emu(0.3)) // n, emu(3.0))
+        actual_gap = (BODY_W - n * col_w) // max(n - 1, 1)
+        circle_sz = min(circle_sz, col_w)
+
+        for i, step in enumerate(steps):
+            cx = LEFT_X + i * (col_w + actual_gap)
+            # 圆圈
+            circle_x = cx + (col_w - circle_sz) // 2
+            _circle(circle_x, y, circle_sz, BRAND_GREEN, f'Circle{i}',
+                    [{'text': str(i + 1), 'bold': True, 'color': WHITE, 'sz': 2400, 'font': 'Arial'}])
+            # 标题
+            st = step.get('title', f'步骤{i+1}')
+            textbox(cx, y + circle_sz + emu(0.15), col_w, emu(0.5), f'PTitle{i}',
+                    [{'text': st, 'bold': True, 'color': '333333', 'sz': 1800, 'align': 'ctr'}])
+            # 描述
+            desc = step.get('desc', '')
+            if desc:
+                textbox(cx, y + circle_sz + emu(0.65), col_w, emu(1.5), f'PDesc{i}',
+                        [{'text': desc, 'bold': False, 'color': '555555', 'sz': 1400, 'align': 'ctr'}])
+            # 连接线（除了最后一个）
+            if i < n - 1:
+                arrow_x = cx + col_w
+                arrow_y = y + circle_sz // 2
+                make_line(arrow_x, arrow_y, actual_gap, GOLD, 19050)
+                spTree.append(make_line(arrow_x, arrow_y, actual_gap, GOLD, 19050))
+        return y + circle_sz + emu(2.2)
+
+    def _layout_tag_list(data, y):
+        """彩色标签 + 描述列表（dashiai-ppt factors/tag 风格）"""
+        tags = data.get('tags', [])
+        if not tags:
+            return y
+        TAG_COLORS = [BRAND_GREEN, GOLD, '4874CB', 'EE822F', '30C0B4', 'E54C5E']
+        for i, tag in enumerate(tags):
+            color = TAG_COLORS[i % len(TAG_COLORS)]
+            term = tag.get('term', '')
+            note = tag.get('note', '')
+            # 标签圆角矩形
+            tag_w = emu(2.0)
+            tag_h = emu(0.45)
+            _rect(BODY_X, y, tag_w, tag_h, color, f'Tag{i}',
+                  [{'text': term, 'bold': True, 'color': WHITE, 'sz': 1400}],
+                  radius=60000, anchor='ctr')
+            # 描述文本
+            if note:
+                textbox(BODY_X + tag_w + emu(0.2), y, BODY_W - tag_w - emu(0.2), tag_h, f'TNote{i}',
+                        [{'text': note, 'bold': False, 'color': '333333', 'sz': 1500}])
+            y += tag_h + emu(0.15)
+        return y
+
+    def _layout_highlight_box(data, y):
+        """大数字高亮框 + 副指标（dashiai-ppt 数据页风格）"""
+        big_num = data.get('big_number', '0')
+        big_label = data.get('big_label', '')
+        secondaries = data.get('secondaries', [])
+        # 主高亮卡片
+        box_h = emu(2.2)
+        _rect(BODY_X, y, BODY_W, box_h, 'F0F7EE', 'HBox', [], radius=30000,
+              line_color=BRAND_GREEN, line_w=19050)
+        # 大数字
+        textbox(BODY_X, y + emu(0.2), BODY_W, emu(1.2), 'BigNum',
+                [{'text': str(big_num), 'bold': True, 'color': BRAND_GREEN, 'sz': 6000, 'font': 'Arial', 'align': 'ctr'}])
+        # 标签
+        if big_label:
+            textbox(BODY_X, y + emu(1.3), BODY_W, emu(0.5), 'BigLabel',
+                    [{'text': big_label, 'bold': False, 'color': '555555', 'sz': 1800, 'align': 'ctr'}])
+        y += box_h + emu(0.3)
+        # 副指标卡片
+        if secondaries:
+            n = len(secondaries)
+            sec_w = (BODY_W - (n - 1) * emu(0.2)) // n
+            for i, sec in enumerate(secondaries):
+                sx = BODY_X + i * (sec_w + emu(0.2))
+                _rect(sx, y, sec_w, emu(1.3), CARD_COLORS[i % len(CARD_COLORS)], f'Sec{i}', [],
+                      radius=30000)
+                sv = sec.get('value', '')
+                sl = sec.get('label', '')
+                textbox(sx, y + emu(0.1), sec_w, emu(0.7), f'SV{i}',
+                        [{'text': sv, 'bold': True, 'color': '333333', 'sz': 2800, 'font': 'Arial', 'align': 'ctr'}])
+                if sl:
+                    textbox(sx, y + emu(0.8), sec_w, emu(0.4), f'SL{i}',
+                            [{'text': sl, 'bold': False, 'color': '555555', 'sz': 1200, 'align': 'ctr'}])
+            y += emu(1.5)
+        return y
+
+    def _layout_dual_stat(data, y):
+        """两个大数字并排对比"""
+        lv = data.get('left_value', '0')
+        ll = data.get('left_label', '')
+        rv = data.get('right_value', '0')
+        rl = data.get('right_label', '')
+        half_w = emu(5.5)
+        gap = emu(0.5)
+        # 左
+        _rect(LEFT_X, y, half_w, emu(2.0), 'F0F7EE', 'DStatL', [], radius=30000)
+        textbox(LEFT_X, y + emu(0.2), half_w, emu(1.0), 'DLV',
+                [{'text': str(lv), 'bold': True, 'color': BRAND_GREEN, 'sz': 4800, 'font': 'Arial', 'align': 'ctr'}])
+        if ll:
+            textbox(LEFT_X, y + emu(1.2), half_w, emu(0.5), 'DLL',
+                    [{'text': ll, 'bold': False, 'color': '555555', 'sz': 1600, 'align': 'ctr'}])
+        # 右
+        rx = LEFT_X + half_w + gap
+        _rect(rx, y, half_w, emu(2.0), 'FFF8EC', 'DStatR', [], radius=30000)
+        textbox(rx, y + emu(0.2), half_w, emu(1.0), 'DRV',
+                [{'text': str(rv), 'bold': True, 'color': 'B8860B', 'sz': 4800, 'font': 'Arial', 'align': 'ctr'}])
+        if rl:
+            textbox(rx, y + emu(1.2), half_w, emu(0.5), 'DRL',
+                    [{'text': rl, 'bold': False, 'color': '555555', 'sz': 1600, 'align': 'ctr'}])
+        return y + emu(2.2)
+
+    def _layout_card_grid(data, y):
+        """网格卡片布局（2×N 或 3×N）"""
+        cards = data.get('cards', [])
+        if not cards:
+            return y
+        n = len(cards)
+        cols = 3 if n >= 3 else 2
+        rows_n = (n + cols - 1) // cols
+        gap = emu(0.25)
+        card_w = (BODY_W - (cols - 1) * gap) // cols
+        card_h = emu(2.0)
+        for i, card in enumerate(cards):
+            row = i // cols
+            col = i % cols
+            cx = LEFT_X + col * (card_w + gap)
+            cy = y + row * (card_h + gap)
+            fill = CARD_COLORS[i % len(CARD_COLORS)]
+            title = card.get('title', '')
+            desc = card.get('desc', '')
+            _rect(cx, cy, card_w, card_h, fill, f'Card{i}', [], radius=80000)
+            # 左侧竖条装饰
+            _accent_bar(cx + emu(0.1), cy + emu(0.15), emu(0.4), [BRAND_GREEN, GOLD, '4874CB'][i % 3])
+            textbox(cx + emu(0.3), cy + emu(0.15), card_w - emu(0.4), emu(0.5), f'CT{i}',
+                    [{'text': title, 'bold': True, 'color': '333333', 'sz': 1600}])
+            if desc:
+                textbox(cx + emu(0.3), cy + emu(0.65), card_w - emu(0.4), card_h - emu(0.8), f'CD{i}',
+                        [{'text': desc, 'bold': False, 'color': '555555', 'sz': 1300}])
+        return y + rows_n * (card_h + gap)
+
+    def _layout_before_after(data, y):
+        """Before/After 对比卡片 + 中间箭头（dashiai-ppt 对比页风格）"""
+        bt = data.get('before_title', 'Before')
+        bi = data.get('before_items', [])
+        at = data.get('after_title', 'After')
+        ai = data.get('after_items', [])
+        card_w = emu(5.2)
+        card_h = emu(3.2)
+        arrow_w = emu(0.8)
+        # Before 卡片
+        _rect(LEFT_X, y, card_w, card_h, 'FAF0F0', 'BeforeCard', [], radius=30000,
+              line_color='E54C5E', line_w=12700)
+        textbox(LEFT_X + emu(0.2), y + emu(0.15), card_w - emu(0.4), emu(0.5), 'BTitle',
+                [{'text': bt, 'bold': True, 'color': 'E54C5E', 'sz': 2000}])
+        spTree.append(make_line(LEFT_X + emu(0.2), y + emu(0.7), card_w - emu(0.4), 'E54C5E', 12700))
+        paras_b = [{'text': i, 'bold': False, 'color': '333333', 'sz': 1500, 'bullet': True} for i in bi]
+        textbox(LEFT_X + emu(0.2), y + emu(0.85), card_w - emu(0.4), card_h - emu(1.0), 'BBody', paras_b)
+        # 中间箭头区域
+        ax = LEFT_X + card_w + emu(0.15)
+        _rect(ax, y + card_h // 2 - emu(0.3), arrow_w, emu(0.6), BRAND_GREEN, 'Arrow',
+              [{'text': '→', 'bold': True, 'color': WHITE, 'sz': 2400, 'align': 'ctr'}],
+              radius=60000, anchor='ctr')
+        # After 卡片
+        rx = ax + arrow_w + emu(0.15)
+        _rect(rx, y, card_w, card_h, 'F0F7EE', 'AfterCard', [], radius=30000,
+              line_color=BRAND_GREEN, line_w=12700)
+        textbox(rx + emu(0.2), y + emu(0.15), card_w - emu(0.4), emu(0.5), 'ATitle',
+                [{'text': at, 'bold': True, 'color': BRAND_GREEN, 'sz': 2000}])
+        spTree.append(make_line(rx + emu(0.2), y + emu(0.7), card_w - emu(0.4), BRAND_GREEN, 12700))
+        paras_a = [{'text': i, 'bold': False, 'color': '333333', 'sz': 1500, 'bullet': True} for i in ai]
+        textbox(rx + emu(0.2), y + emu(0.85), card_w - emu(0.4), card_h - emu(1.0), 'ABody', paras_a)
+        return y + card_h + emu(0.2)
 
     # ── 布局分发 ────────────────────────────────────────
     LAYOUTS = {
@@ -537,6 +892,14 @@ def create_content(path, rels_path, data, media_dir):
         'case':          _layout_case,
         'funnel':        _layout_funnel,
         'takeaway':      _layout_takeaway,
+        # ── dashiai-ppt 风格新增布局 ──
+        'comparison_cards': _layout_comparison_cards,
+        'process_circles':  _layout_process_circles,
+        'tag_list':         _layout_tag_list,
+        'highlight_box':    _layout_highlight_box,
+        'dual_stat':        _layout_dual_stat,
+        'card_grid':        _layout_card_grid,
+        'before_after':     _layout_before_after,
     }
 
     layout_fn = LAYOUTS.get(layout)
@@ -572,6 +935,10 @@ def edit_cover(path, plan):
         text = ''.join(r.find('a:t', namespaces={'a': A}).text or '' for r in runs)
         if 'PPT' in text:
             replace_para_text(p, plan.get('title', ''))
+            for rp in p.findall('a:r', namespaces={'a': A}):
+                rPr = rp.find('a:rPr', namespaces={'a': A})
+                if rPr is not None:
+                    rPr.set('sz', '2400')
         elif 'HCYM EDUCATION' in text:
             replace_para_text(p, plan.get('subtitle', ''))
         elif 'REPORT' in text.upper() or 'ANNUAL' in text.upper():
@@ -600,12 +967,22 @@ def replace_para_text(para, new_text):
 # ── 编辑目录 ─────────────────────────────────────────────
 def edit_toc(path, items):
     slide = etree.parse(path).getroot()
-    for i, item_text in enumerate(items[:5], 1):
+    A = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    P = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+    for i in range(1, 6):
         for p in slide.xpath('//a:p', namespaces={'a': A}):
             runs = p.findall('a:r', namespaces={'a': A})
             text = ''.join(r.find('a:t', namespaces={'a': A}).text or '' for r in runs)
             if text == f'目录标题{i}':
-                replace_para_text(p, item_text)
+                if i <= len(items):
+                    replace_para_text(p, items[i - 1])
+                else:
+                    # Remove the entire shape containing this paragraph
+                    sp = p
+                    while sp is not None and sp.tag != f'{{{P}}}sp':
+                        sp = sp.getparent()
+                    if sp is not None and sp.getparent() is not None:
+                        sp.getparent().remove(sp)
                 break
     save(slide, path)
 
@@ -621,7 +998,12 @@ def edit_section(path, data):
         elif text.strip().startswith('20'):  # 年份
             replace_para_text(p, data.get('year', ''))
         elif len(text.strip()) >= 2 and 'PART' not in text and not text.strip().startswith('20'):
-            replace_para_text(p, data.get('title', ''))
+            new_title = data.get('title', '')
+            replace_para_text(p, new_title)
+            for rp in p.findall('a:r', namespaces={'a': A}):
+                rPr = rp.find('a:rPr', namespaces={'a': A})
+                if rPr is not None and len(new_title) > 8:
+                    rPr.set('sz', '2400')
     save(slide, path)
 
 # ── 主生成流程 ───────────────────────────────────────────
@@ -746,8 +1128,25 @@ def generate(plan, tpl_path, pptx_scripts, out_path, skill_root):
             full_order.append(slide_map.get(f'end_{end_i}', 'slide5.xml')); end_i += 1
 
     # 重建 sldIdLst
+    # 先读取 presentation.xml.rels，建立 rId → slide filename 的映射
+    pres_rels_path = os.path.join(work, 'ppt', '_rels', 'presentation.xml.rels')
+    pres_rels = etree.parse(pres_rels_path).getroot()
+    REL_NS = 'http://schemas.openxmlformats.org/package/2006/relationships'
+    rid_to_fname = {}
+    for rel in pres_rels.findall(f'{{{REL_NS}}}Relationship'):
+        rid = rel.get('Id')
+        target = rel.get('Target', '')
+        if target.startswith('slides/'):
+            rid_to_fname[rid] = os.path.basename(target)
+
     old_ids = list(sldIdLst)
-    id_map = {os.path.basename(e.get(f'{{{R}}}id')): e for e in old_ids}
+    # 建立 slide filename → element 的映射
+    id_map = {}
+    for e in old_ids:
+        rid = e.get(f'{{{R}}}id')
+        fname = rid_to_fname.get(rid)
+        if fname:
+            id_map[fname] = e
     for e in old_ids:
         sldIdLst.remove(e)
 
