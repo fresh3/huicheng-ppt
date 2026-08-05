@@ -848,7 +848,7 @@ def create_content(path, rels_path, data, media_dir):
 
     def _accent_bar(x, y, cx, color=BRAND_GREEN):
         """左侧竖条装饰"""
-        bar = make_rect(x, y, emu(0.08), emu(0.5), color, 'Accent', [], radius=20000)
+        bar = make_rect(x, y, emu(0.08), emu(0.5), color, 'Accent', [], radius=0)
         spTree.append(bar)
 
     def _layout_comparison_cards(data, y):
