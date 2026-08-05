@@ -1017,7 +1017,7 @@ def create_content(path, rels_path, data, media_dir):
             fill = CARD_COLORS[i % len(CARD_COLORS)]
             title = card.get('title', '')
             desc = card.get('desc', '')
-            _rect(cx, cy, card_w, card_h, fill, f'Card{i}', [], radius=80000)
+            _rect(cx, cy, card_w, card_h, fill, f'Card{i}', [], radius=4374)
             # 左侧竖条装饰
             _accent_bar(cx + emu(0.1), cy + emu(0.15), emu(0.4), [BRAND_GREEN, GOLD, '4874CB'][i % 3])
             textbox(cx + emu(0.3), cy + emu(0.15), card_w - emu(0.4), emu(0.5), f'CT{i}',
